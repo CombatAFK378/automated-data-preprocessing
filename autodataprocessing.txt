@@ -1,0 +1,81 @@
+import pandas as pd
+import numpy as np
+import os
+
+def clean_data(file_path):
+    print(f"--- Starting Data Cleaning: {file_path} ---")
+    
+    # 1. Load Data
+    if not os.path.exists(file_path):
+        return "Error: File not found."
+        
+    try:
+        if file_path.endswith('.csv'):
+            df = pd.read_csv(file_path)
+        elif file_path.endswith(('.xls', '.xlsx')):
+            df = pd.read_excel(file_path, sheet_name=0) 
+        else:
+            return "Error: Unsupported format (use CSV or Excel)"
+    except Exception as e:
+        return f"Error loading file: {e}"
+    
+    print(f"Original Shape: {df.shape}")
+    
+    # 2. Drop completely empty rows/columns
+    df.dropna(how='all', axis=0, inplace=True)
+    df.dropna(how='all', axis=1, inplace=True)
+    
+    # 3. Standardize column names
+    df.columns = (df.columns.str.strip()
+                            .str.lower()
+                            .str.replace(' ', '_')
+                            .str.replace(r'[^\w]', '', regex=True))  # ✅ FIXED
+    
+    # 4. Remove duplicates
+    df.drop_duplicates(inplace=True)
+    
+    # 5. Strip whitespace from string columns
+    str_cols = df.select_dtypes(include=['object']).columns
+    for col in str_cols:
+        df[col] = df[col].map(lambda x: x.strip() if isinstance(x, str) else x)
+    
+    # 6. Handle Missing Values
+    numeric_cols = df.select_dtypes(include=['number']).columns
+    for col in numeric_cols:
+        if df[col].isnull().any():
+            median_val = df[col].median()
+            df[col] = df[col].fillna(median_val)
+            print(f"Filled '{col}' missing values with median: {median_val:.2f}")
+    
+    cat_cols = df.select_dtypes(include=['object']).columns
+    for col in cat_cols:
+        if df[col].isnull().any():
+            df[col] = df[col].fillna("Unknown")
+            print(f"Filled '{col}' missing values with 'Unknown'")
+    
+    # 7. Try numeric conversion
+    for col in cat_cols:
+        try:
+            if df[col].str.contains(r'\d', regex=True).any():  # ✅ Also fixed here (single backslash)
+                cleaned = df[col].astype(str).str.replace(r'[$,%]', '', regex=True)
+                converted = pd.to_numeric(cleaned, errors='coerce')
+                
+                if converted.notna().mean() > 0.5:
+                    df[col] = converted
+                    print(f"Converted '{col}' to numeric")
+        except:
+            pass
+    
+    # 8. Try datetime conversion
+    obj_cols = df.select_dtypes(include=['object']).columns 
+    for col in obj_cols:
+        try:
+            converted = pd.to_datetime(df[col], errors='coerce')
+            if converted.notna().mean() > 0.4:
+                df[col] = converted
+                print(f"Converted '{col}' to datetime")
+        except:
+            pass
+    
+    print(f"--- Cleaned Shape: {df.shape} ---")
+    return df
