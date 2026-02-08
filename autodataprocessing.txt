@@ -79,3 +79,64 @@ def clean_data(file_path):
     
     print(f"--- Cleaned Shape: {df.shape} ---")
     return df
+
+
+
+
+
+
+
+1. The "Sheet 2" Trap
+Scenario: The Excel file loads, but the columns are weird or empty. The Cause: Corporate Excel files often have an "Instructions" or "Disclaimer" tab as Sheet 1. Your data is actually on Sheet 2. The Fix: If df.shape looks wrong, change this line immediately:
+
+Python
+# Change sheet_name=0 to sheet_name='Sheet2' or the actual name
+df = pd.read_excel(file_path, sheet_name='Data_Sheet_Name') 
+2. The "Double Header" Trap
+Scenario: The column names look like Unnamed: 0, Unnamed: 1, and the actual headers are in Row 2 or 3. The Cause: The file has a title or logo at the top before the actual table starts. The Fix: Add the header or skiprows parameter:
+
+Python
+# Skip the first 2 rows to find the real header
+df = pd.read_excel(file_path, skiprows=2)
+3. The "Encoding" Error (CSV Only)
+Scenario: You try to load a CSV and get a crash: UnicodeDecodeError. The Cause: The file was saved in an older format (common in banks/insurance companies). The Fix: Update your read_csv line to try a different encoding:
+
+Python
+# Try 'latin1' or 'cp1252' if utf-8 fails
+df = pd.read_csv(file_path, encoding='latin1')
+
+
+
+
+
+The "Analysis" Cheat Sheet (Add this to your Repo)
+1. The "Group By" Snippet (Most Common Question)
+Question: "Calculate the average/sum/count of X per Y."
+
+Code:
+
+Python
+def get_group_stats(df, group_col, target_col):
+    # "Group by Region, give me sum of Sales and count of Orders"
+    return df.groupby(group_col)[target_col].agg(['sum', 'mean', 'count']).reset_index()
+2. The "Pivot Table" Snippet (The "Excel" Question)
+Question: "Make a table where rows are Students, columns are Subjects, and values are Marks."
+
+Code:
+
+Python
+def make_pivot(df, index_col, columns_col, values_col):
+    # Useful for reshaping data
+    return df.pivot_table(index=index_col, columns=columns_col, values=values_col, aggfunc='sum').fillna(0)
+3. The "Date Logic" Snippet
+Question: "How many sales happened in the last 7 days?" or "Extract the Month from the date."
+
+Code:
+
+Python
+def add_date_features(df, date_col):
+    # Extract Month, Year, Day of Week
+    df['Month'] = df[date_col].dt.month_name()
+    df['Year'] = df[date_col].dt.year
+    df['DayOfWeek'] = df[date_col].dt.day_name()
+    return df
